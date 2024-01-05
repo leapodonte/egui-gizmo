@@ -9,9 +9,7 @@ use crate::painter::Painter3d;
 use crate::subgizmo::SubGizmo;
 use crate::{GizmoDirection, GizmoMode, GizmoResult, Ray, WidgetData};
 
-/// Picks given translation subgizmo. If the subgizmo is close enough to
-/// the mouse pointer, distance from camera to the subgizmo is returned.
-pub(crate) fn pick_translation(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> Option<f32> {
+pub(crate) fn translation_is_visible(subgizmo: &SubGizmo) -> bool {
     let direction = subgizmo.local_normal();
 
     let width = subgizmo.config.scale_factor * subgizmo.config.visuals.stroke_width;
@@ -34,8 +32,18 @@ pub(crate) fn pick_translation(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> Option
     );
     if let (Some(screen_start), Some(screen_end)) = (screen_start, screen_end) {
         if screen_start.distance(screen_end) < 5.0 {
-            return None;
+            return false;
         }
+    }
+
+    true
+}
+
+/// Picks given translation subgizmo. If the subgizmo is close enough to
+/// the mouse pointer, distance from camera to the subgizmo is returned.
+pub(crate) fn pick_translation(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> Option<f32> {
+    if !translation_is_visible(subgizmo) {
+        return None;
     }
 
     let origin = subgizmo.config.translation;
@@ -69,6 +77,10 @@ pub(crate) fn pick_translation(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> Option
 }
 
 pub(crate) fn draw_translation(subgizmo: &SubGizmo, ui: &Ui) {
+    if !translation_is_visible(subgizmo) {
+        return;
+    }
+
     let painter = Painter3d::new(
         ui.painter().clone(),
         subgizmo.config.view_projection * translation_transform(subgizmo),
@@ -86,22 +98,6 @@ pub(crate) fn draw_translation(subgizmo: &SubGizmo, ui: &Ui) {
 
     let start = direction * width;
     let end = direction * length;
-
-    let screen_start = world_to_screen(
-        subgizmo.config.viewport,
-        subgizmo.config.view_projection * translation_transform(subgizmo),
-        start,
-    );
-    let screen_end = world_to_screen(
-        subgizmo.config.viewport,
-        subgizmo.config.view_projection * translation_transform(subgizmo),
-        end,
-    );
-    if let (Some(screen_start), Some(screen_end)) = (screen_start, screen_end) {
-        if screen_start.distance(screen_end) < 5.0 {
-            return;
-        }
-    }
 
     painter.line_segment(start, end, (subgizmo.config.visuals.stroke_width, color));
     painter.arrow(
@@ -149,9 +145,7 @@ fn snap_translation_vector(subgizmo: &SubGizmo, new_delta: Vec3) -> Vec3 {
     }
 }
 
-/// Picks given translation plane subgizmo. If the subgizmo is close enough to
-/// the mouse pointer, distance from camera to the subgizmo is returned.
-pub(crate) fn pick_translation_plane(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> Option<f32> {
+pub(crate) fn translation_plane_is_visible(subgizmo: &SubGizmo) -> bool {
     let origin = translation_plane_global_origin(subgizmo);
 
     let scale = translation_plane_size(subgizmo) * 0.5;
@@ -170,12 +164,24 @@ pub(crate) fn pick_translation_plane(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> 
     );
     if let (Some(screen_start), Some(screen_end)) = (screen_start, screen_end) {
         if (screen_start.x - screen_end.x).abs() < 5.0 {
-            return None;
+            return false;
         }
         if (screen_start.y - screen_end.y).abs() < 5.0 {
-            return None;
+            return false;
         }
     }
+
+    true
+}
+
+/// Picks given translation plane subgizmo. If the subgizmo is close enough to
+/// the mouse pointer, distance from camera to the subgizmo is returned.
+pub(crate) fn pick_translation_plane(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> Option<f32> {
+    if !translation_plane_is_visible(subgizmo) {
+        return None;
+    }
+
+    let origin = translation_plane_global_origin(subgizmo);
 
     let normal = subgizmo.normal();
 
@@ -197,6 +203,10 @@ pub(crate) fn pick_translation_plane(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> 
 }
 
 pub(crate) fn draw_translation_plane(subgizmo: &SubGizmo, ui: &Ui) {
+    if !translation_plane_is_visible(subgizmo) {
+        return;
+    }
+
     let painter = Painter3d::new(
         ui.painter().clone(),
         subgizmo.config.view_projection * translation_transform(subgizmo),
@@ -210,25 +220,6 @@ pub(crate) fn draw_translation_plane(subgizmo: &SubGizmo, ui: &Ui) {
     let b = translation_plane_tangent(subgizmo.direction) * scale;
 
     let origin = translation_plane_local_origin(subgizmo);
-
-    let screen_start = world_to_screen(
-        subgizmo.config.viewport,
-        subgizmo.config.view_projection * translation_transform(subgizmo),
-        origin - b - a,
-    );
-    let screen_end = world_to_screen(
-        subgizmo.config.viewport,
-        subgizmo.config.view_projection * translation_transform(subgizmo),
-        origin + b + a,
-    );
-    if let (Some(screen_start), Some(screen_end)) = (screen_start, screen_end) {
-        if (screen_start.x - screen_end.x).abs() < 5.0 {
-            return;
-        }
-        if (screen_start.y - screen_end.y).abs() < 5.0 {
-            return;
-        }
-    }
 
     painter.polygon(
         &[
