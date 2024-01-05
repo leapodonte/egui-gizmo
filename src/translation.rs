@@ -3,6 +3,7 @@ use glam::{Mat4, Vec3};
 
 use crate::math::{
     intersect_plane, ray_to_plane_origin, ray_to_ray, round_to_interval, segment_to_segment,
+    world_to_screen,
 };
 use crate::painter::Painter3d;
 use crate::subgizmo::SubGizmo;
@@ -11,6 +12,32 @@ use crate::{GizmoDirection, GizmoMode, GizmoResult, Ray, WidgetData};
 /// Picks given translation subgizmo. If the subgizmo is close enough to
 /// the mouse pointer, distance from camera to the subgizmo is returned.
 pub(crate) fn pick_translation(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> Option<f32> {
+    let direction = subgizmo.local_normal();
+
+    let width = subgizmo.config.scale_factor * subgizmo.config.visuals.stroke_width;
+    let length = subgizmo.config.scale_factor * subgizmo.config.visuals.gizmo_size;
+    let arrow_length = width * 2.4;
+    let length = length - arrow_length;
+
+    let start = direction * width;
+    let end = direction * length;
+
+    let screen_start = world_to_screen(
+        subgizmo.config.viewport,
+        subgizmo.config.view_projection * translation_transform(subgizmo),
+        start,
+    );
+    let screen_end = world_to_screen(
+        subgizmo.config.viewport,
+        subgizmo.config.view_projection * translation_transform(subgizmo),
+        end,
+    );
+    if let (Some(screen_start), Some(screen_end)) = (screen_start, screen_end) {
+        if screen_start.distance(screen_end) < 5.0 {
+            return None;
+        }
+    }
+
     let origin = subgizmo.config.translation;
     let dir = subgizmo.normal();
     let scale = subgizmo.config.scale_factor * subgizmo.config.visuals.gizmo_size;
@@ -59,6 +86,22 @@ pub(crate) fn draw_translation(subgizmo: &SubGizmo, ui: &Ui) {
 
     let start = direction * width;
     let end = direction * length;
+
+    let screen_start = world_to_screen(
+        subgizmo.config.viewport,
+        subgizmo.config.view_projection * translation_transform(subgizmo),
+        start,
+    );
+    let screen_end = world_to_screen(
+        subgizmo.config.viewport,
+        subgizmo.config.view_projection * translation_transform(subgizmo),
+        end,
+    );
+    if let (Some(screen_start), Some(screen_end)) = (screen_start, screen_end) {
+        if screen_start.distance(screen_end) < 5.0 {
+            return;
+        }
+    }
 
     painter.line_segment(start, end, (subgizmo.config.visuals.stroke_width, color));
     painter.arrow(
@@ -111,6 +154,29 @@ fn snap_translation_vector(subgizmo: &SubGizmo, new_delta: Vec3) -> Vec3 {
 pub(crate) fn pick_translation_plane(subgizmo: &SubGizmo, ui: &Ui, ray: Ray) -> Option<f32> {
     let origin = translation_plane_global_origin(subgizmo);
 
+    let scale = translation_plane_size(subgizmo) * 0.5;
+    let a = translation_plane_binormal(subgizmo.direction) * scale;
+    let b = translation_plane_tangent(subgizmo.direction) * scale;
+
+    let screen_start = world_to_screen(
+        subgizmo.config.viewport,
+        subgizmo.config.view_projection * translation_transform(subgizmo),
+        origin - b - a,
+    );
+    let screen_end = world_to_screen(
+        subgizmo.config.viewport,
+        subgizmo.config.view_projection * translation_transform(subgizmo),
+        origin + b + a,
+    );
+    if let (Some(screen_start), Some(screen_end)) = (screen_start, screen_end) {
+        if (screen_start.x - screen_end.x).abs() < 5.0 {
+            return None;
+        }
+        if (screen_start.y - screen_end.y).abs() < 5.0 {
+            return None;
+        }
+    }
+
     let normal = subgizmo.normal();
 
     let (t, dist_from_origin) = ray_to_plane_origin(normal, origin, ray.origin, ray.direction);
@@ -144,6 +210,25 @@ pub(crate) fn draw_translation_plane(subgizmo: &SubGizmo, ui: &Ui) {
     let b = translation_plane_tangent(subgizmo.direction) * scale;
 
     let origin = translation_plane_local_origin(subgizmo);
+
+    let screen_start = world_to_screen(
+        subgizmo.config.viewport,
+        subgizmo.config.view_projection * translation_transform(subgizmo),
+        origin - b - a,
+    );
+    let screen_end = world_to_screen(
+        subgizmo.config.viewport,
+        subgizmo.config.view_projection * translation_transform(subgizmo),
+        origin + b + a,
+    );
+    if let (Some(screen_start), Some(screen_end)) = (screen_start, screen_end) {
+        if (screen_start.x - screen_end.x).abs() < 5.0 {
+            return;
+        }
+        if (screen_start.y - screen_end.y).abs() < 5.0 {
+            return;
+        }
+    }
 
     painter.polygon(
         &[
