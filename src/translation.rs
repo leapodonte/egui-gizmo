@@ -152,21 +152,37 @@ pub(crate) fn translation_plane_is_visible(subgizmo: &SubGizmo) -> bool {
     let a = translation_plane_binormal(subgizmo.direction) * scale;
     let b = translation_plane_tangent(subgizmo.direction) * scale;
 
-    let screen_start = world_to_screen(
+    let screen_a = world_to_screen(
         subgizmo.config.viewport,
         subgizmo.config.view_projection * translation_transform(subgizmo),
         origin - b - a,
     );
-    let screen_end = world_to_screen(
+    let screen_b = world_to_screen(
+        subgizmo.config.viewport,
+        subgizmo.config.view_projection * translation_transform(subgizmo),
+        origin + b - a,
+    );
+    let screen_c = world_to_screen(
         subgizmo.config.viewport,
         subgizmo.config.view_projection * translation_transform(subgizmo),
         origin + b + a,
     );
-    if let (Some(screen_start), Some(screen_end)) = (screen_start, screen_end) {
-        if (screen_start.x - screen_end.x).abs() < 5.0 {
+    let screen_d = world_to_screen(
+        subgizmo.config.viewport,
+        subgizmo.config.view_projection * translation_transform(subgizmo),
+        origin - b + a,
+    );
+    if let (Some(screen_a), Some(screen_b), Some(screen_c), Some(screen_d)) =
+        (screen_a, screen_b, screen_c, screen_d)
+    {
+        let max_x = screen_a.x.max(screen_b.x.max(screen_c.x.max(screen_d.x)));
+        let min_x = screen_a.x.min(screen_b.x.min(screen_c.x.min(screen_d.x)));
+        let max_y = screen_a.y.max(screen_b.y.max(screen_c.y.max(screen_d.y)));
+        let min_y = screen_a.y.min(screen_b.y.min(screen_c.y.min(screen_d.y)));
+        if (max_x - min_x).abs() < 5.0 {
             return false;
         }
-        if (screen_start.y - screen_end.y).abs() < 5.0 {
+        if (max_y - min_y).abs() < 5.0 {
             return false;
         }
     }
