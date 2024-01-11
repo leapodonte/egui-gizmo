@@ -12,8 +12,8 @@ use crate::{GizmoDirection, GizmoMode, GizmoResult, Ray, WidgetData};
 pub(crate) fn translation_is_visible(subgizmo: &SubGizmo) -> bool {
     let direction = subgizmo.local_normal();
 
-    let width = subgizmo.config.scale_factor * subgizmo.config.visuals.stroke_width;
-    let length = subgizmo.config.scale_factor * subgizmo.config.visuals.gizmo_size;
+    let width = subgizmo.config.scale_factor as f64 * subgizmo.config.visuals.stroke_width as f64;
+    let length = subgizmo.config.scale_factor as f64 * subgizmo.config.visuals.gizmo_size as f64;
     let arrow_length = width * 2.4;
     let length = length - arrow_length;
 
