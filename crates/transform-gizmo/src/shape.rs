@@ -103,12 +103,7 @@ impl ShapeBuidler {
         self.tessellate_shape(Shape::convex_polygon(points, color, stroke.into()))
     }
 
-    pub(crate) fn line_segment(
-        &self,
-        from: DVec3,
-        to: DVec3,
-        stroke: impl Into<PathStroke>,
-    ) -> Mesh {
+    pub(crate) fn line_segment(&self, from: DVec3, to: DVec3, stroke: impl Into<Stroke>) -> Mesh {
         let mut points: [Pos2; 2] = Default::default();
 
         for (i, point) in points.iter_mut().enumerate() {
