@@ -101,6 +101,9 @@ impl GizmoExt for Gizmo {
             },
             targets,
         );
+        if interaction.interact_pointer_pos.is_some() && gizmo_result.is_none() {
+            ui.ctx().stop_dragging();
+        }
 
         let draw_data = self.draw();
 
